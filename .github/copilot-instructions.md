@@ -1,0 +1,6 @@
+- Build this project as a Vite + React + TypeScript frontend app.
+- Keep the UI in Swedish and suitable for mathematics in year 7.
+- The first implemented view is Statistiklabbet in src/App.tsx.
+- Current features: add one value at a time, drag and drop value blocks, drop on trash to delete, and show mean, median, mode, and range.
+- Validate code changes with npm run build.
+- Keep changes focused and preserve the existing visual style unless a task requires otherwise.
