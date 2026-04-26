@@ -113,6 +113,18 @@
   margin-bottom: 10px;
 }
 
+.form-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.form-top-row .field-label {
+  margin-bottom: 0;
+}
+
 .field-row {
   display: flex;
   gap: 12px;
@@ -156,6 +168,53 @@
   font-size: 0.92rem;
 }
 
+.quick-values {
+  margin-top: 12px;
+  min-height: 52px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.quick-value-chip {
+  border: 1px solid rgba(126, 94, 58, 0.18);
+  border-radius: 14px;
+  padding: 8px 12px;
+  background: rgba(255, 250, 242, 0.9);
+  color: var(--text-h);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease;
+}
+
+.quick-value-chip:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 244, 229, 0.98);
+}
+
+.quick-value-chip:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.form-actions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.form-actions-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .page-intro-card {
   display: grid;
   gap: 12px;
@@ -191,6 +250,10 @@
   padding: 8px 12px;
   font-size: 0.92rem;
   white-space: nowrap;
+}
+
+.hero-panel .value-form .form-top-row .pill {
+  padding: 3px 10px;
 }
 
 .block-row {
@@ -771,4 +834,5 @@
   .hero-panel>.page-intro-card {
     width: 100%;
   }
+
 }

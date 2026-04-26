@@ -16,7 +16,7 @@ type StatsSummary = {
 };
 
 type PageId = 'lagesmatt' | 'diagram' | 'kombinatorik';
-type DiagramType = 'stapel' | 'punkt' | 'linje' | 'cirkel';
+type DiagramType = 'stapel' | 'cirkel';
 type BarMode = 'staande' | 'liggande';
 
 const pages: Array<{ id: PageId; label: string; }> = [
@@ -27,8 +27,6 @@ const pages: Array<{ id: PageId; label: string; }> = [
 
 const diagramTypes: Array<{ id: DiagramType; label: string; }> = [
   { id: 'stapel', label: 'Stapeldiagram' },
-  { id: 'punkt', label: 'Punktdiagram' },
-  { id: 'linje', label: 'Linjediagram' },
   { id: 'cirkel', label: 'Cirkeldiagram' },
 ];
 
@@ -91,8 +89,6 @@ function App() {
     { id: 4, value: 10 },
   ]);
   const [inputValue, setInputValue] = useState('');
-  const [draggedId, setDraggedId] = useState<number | null>(null);
-  const [trashActive, setTrashActive] = useState(false);
   const [nextId, setNextId] = useState(5);
   const [currentPage, setCurrentPage] = useState<PageId>('lagesmatt');
   const [diagramType, setDiagramType] = useState<DiagramType>('stapel');
@@ -149,31 +145,6 @@ function App() {
     return `conic-gradient(${segments.join(', ')})`;
   }, [frequencyData]);
 
-  const linePoints = useMemo(() => {
-    if (stats.sortedValues.length === 0) {
-      return '';
-    }
-
-    if (stats.sortedValues.length === 1) {
-      return '24,96';
-    }
-
-    const chartWidth = 360;
-    const chartHeight = 120;
-    const values = stats.sortedValues;
-    const min = values[0];
-    const max = values[values.length - 1];
-    const range = max - min || 1;
-
-    return values
-      .map((value, index) => {
-        const x = (index / (values.length - 1)) * chartWidth;
-        const y = chartHeight - ((value - min) / range) * chartHeight;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(' ');
-  }, [stats.sortedValues]);
-
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -190,21 +161,6 @@ function App() {
     setItems((currentItems) => [...currentItems, { id: nextId, value: parsedValue }]);
     setNextId((currentId) => currentId + 1);
     setInputValue('');
-  };
-
-  const removeDraggedItem = () => {
-    if (draggedId === null) {
-      return;
-    }
-
-    setItems((currentItems) => currentItems.filter((item) => item.id !== draggedId));
-    setDraggedId(null);
-    setTrashActive(false);
-  };
-
-  const clearDragState = () => {
-    setDraggedId(null);
-    setTrashActive(false);
   };
 
   return (
@@ -237,11 +193,23 @@ function App() {
           </div>
         </div>
 
-        {currentPage === 'lagesmatt' ? (
+        {currentPage === 'kombinatorik' ? (
+          <section className="value-form page-intro-card">
+            <p className="field-label">Kombinatorik</p>
+            <h2>En egen övningsyta</h2>
+            <p className="page-intro-text">
+              Här kan vi senare bygga uppgifter där man räknar olika möjliga val,
+              ordningar och kombinationer.
+            </p>
+          </section>
+        ) : (
           <form className="value-form" onSubmit={handleSubmit}>
-            <label className="field-label" htmlFor="value-input">
-              Lägg till ett värde
-            </label>
+            <div className="form-top-row">
+              <label className="field-label" htmlFor="value-input">
+                Lägg till ett värde
+              </label>
+              <span className="pill">{items.length} värden</span>
+            </div>
             <div className="field-row">
               <input
                 id="value-input"
@@ -253,58 +221,21 @@ function App() {
               />
               <button type="submit">Lägg till</button>
             </div>
-            <p className="field-help">Tips: både komma och punkt fungerar.</p>
-          </form>
-        ) : currentPage === 'diagram' ? (
-          <section className="value-form page-intro-card">
-            <p className="field-label">Diagram</p>
-            <h2>Välj diagramtyp</h2>
-            <p className="page-intro-text">
-              Testa hur samma värden ser ut i olika diagram. Ni kan växla med
-              knapparna i diagramvyn.
-            </p>
-          </section>
-        ) : (
-          <section className="value-form page-intro-card">
-            <p className="field-label">Kombinatorik</p>
-            <h2>En egen övningsyta</h2>
-            <p className="page-intro-text">
-              Här kan vi senare bygga uppgifter där man räknar olika möjliga val,
-              ordningar och kombinationer.
-            </p>
-          </section>
-        )}
-      </section>
 
-      {currentPage === 'lagesmatt' ? (
-        <section className="workspace-panel">
-          <div className="board-card">
-            <div className="section-heading">
-              <div>
-                <h2>Värden</h2>
-                <p>De visas alltid från minsta till största.</p>
-              </div>
-              <span className="pill">{items.length} värden</span>
-            </div>
-
-            <div className="block-row" aria-label="Lista med värden">
-              {items.length === 0 ? (
-                <div className="empty-state">
-                  Börja med att skriva in ett tal. Då räknar appen ut medelvärde,
-                  median, typvärde och värdespridning.
-                </div>
+            <div className="quick-values" aria-label="Värden under inmatningsfältet">
+              {sortedItems.length === 0 ? (
+                <p className="field-help">Inga värden ännu.</p>
               ) : (
                 sortedItems.map((item) => (
                   <button
-                    key={item.id}
+                    key={`quick-${item.id}`}
                     type="button"
-                    className={`value-block${draggedId === item.id ? ' dragging' : ''}`}
-                    draggable
-                    onDragStart={() => {
-                      setDraggedId(item.id);
-                      setTrashActive(false);
+                    className="quick-value-chip"
+                    onClick={() => {
+                      setItems((currentItems) => currentItems.filter((entry) => entry.id !== item.id));
                     }}
-                    onDragEnd={clearDragState}
+                    aria-label={`Ta bort värdet ${formatNumber(item.value)}`}
+                    title="Klicka för att ta bort"
                   >
                     {formatNumber(item.value)}
                   </button>
@@ -312,36 +243,25 @@ function App() {
               )}
             </div>
 
-            <div className="board-actions">
-              <div
-                className={`trash-zone${trashActive ? ' active' : ''}`}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setTrashActive(true);
-                }}
-                onDragLeave={() => setTrashActive(false)}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  removeDraggedItem();
-                }}
-              >
-                Släpp här för att kasta ett värde
-              </div>
-
+            <div className="form-actions">
+              <p className="form-actions-help">Klicka på ett värde för att ta bort det</p>
               <button
                 type="button"
                 className="clear-button"
                 onClick={() => {
                   setItems([]);
-                  clearDragState();
                 }}
                 disabled={items.length === 0}
               >
-                Töm listan
+                Rensa
               </button>
             </div>
-          </div>
+          </form>
+        )}
+      </section>
 
+      {currentPage === 'lagesmatt' ? (
+        <section className="workspace-panel single-panel-layout">
           <div className="stats-grid">
             <article className="stat-card highlight">
               <p className="stat-label">Medelvärde</p>
@@ -489,47 +409,6 @@ function App() {
                         ? 'Skalan till vänster visar frekvens (hur många av varje värde).'
                         : 'Skalan visar frekvens (hur många av varje värde).'}
                     </p>
-                  </div>
-                ) : null}
-
-                {diagramType === 'punkt' ? (
-                  <div className="chart-panel">
-                    <div className="dot-chart" role="img" aria-label="Punktdiagram över frekvens">
-                      {frequencyData.map((entry, index) => (
-                        <div key={entry.value} className="dot-column">
-                          <div className="dot-stack">
-                            {Array.from({ length: entry.count }).map((_, pointIndex) => (
-                              <span
-                                key={`${entry.value}-${pointIndex}`}
-                                className="dot"
-                                style={{
-                                  backgroundColor: chartPalette[index % chartPalette.length],
-                                }}
-                              ></span>
-                            ))}
-                          </div>
-                          <p>{formatNumber(entry.value)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {diagramType === 'linje' ? (
-                  <div className="chart-panel">
-                    <div className="line-chart" role="img" aria-label="Linjediagram för sorterade värden">
-                      <svg viewBox="0 0 360 120" preserveAspectRatio="none">
-                        <polyline points={linePoints} />
-                        {linePoints
-                          .split(' ')
-                          .filter(Boolean)
-                          .map((point) => {
-                            const [x, y] = point.split(',');
-                            return <circle key={point} cx={x} cy={y} r="3.2" />;
-                          })}
-                      </svg>
-                    </div>
-                    <p className="chart-caption">Värden i stigande ordning på x-axeln.</p>
                   </div>
                 ) : null}
 
