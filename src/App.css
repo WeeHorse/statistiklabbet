@@ -411,6 +411,12 @@
     min-width: 0;
   }
 
+  .hero-panel > .value-form,
+  .hero-panel > .page-intro-card {
+    width: calc(100% - 176px);
+    max-width: 100%;
+  }
+
   .page-menu {
     width: 156px;
     gap: 8px;
@@ -453,5 +459,10 @@
     position: static;
     width: auto;
     justify-items: stretch;
+  }
+
+  .hero-panel > .value-form,
+  .hero-panel > .page-intro-card {
+    width: 100%;
   }
 }
