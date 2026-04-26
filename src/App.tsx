@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { CSSProperties, FormEvent } from 'react';
 import './App.css';
 
 type ValueItem = {
@@ -16,12 +16,22 @@ type StatsSummary = {
 };
 
 type PageId = 'lagesmatt' | 'diagram' | 'kombinatorik';
+type DiagramType = 'stapel' | 'punkt' | 'linje' | 'cirkel';
 
 const pages: Array<{ id: PageId; label: string; }> = [
   { id: 'lagesmatt', label: 'Lägesmått' },
   { id: 'diagram', label: 'Diagram' },
   { id: 'kombinatorik', label: 'Kombinatorik' },
 ];
+
+const diagramTypes: Array<{ id: DiagramType; label: string; }> = [
+  { id: 'stapel', label: 'Stapeldiagram' },
+  { id: 'punkt', label: 'Punktdiagram' },
+  { id: 'linje', label: 'Linjediagram' },
+  { id: 'cirkel', label: 'Cirkeldiagram' },
+];
+
+const chartPalette = ['#009e9d', '#f39b4a', '#6b7fff', '#e36d7b', '#6aaf4d', '#8f76ff'];
 
 const formatNumber = (value: number) => {
   const fixedValue = Number.isInteger(value) ? value.toString() : value.toFixed(2);
@@ -83,6 +93,7 @@ function App() {
   const [trashActive, setTrashActive] = useState(false);
   const [nextId, setNextId] = useState(5);
   const [currentPage, setCurrentPage] = useState<PageId>('lagesmatt');
+  const [diagramType, setDiagramType] = useState<DiagramType>('stapel');
 
   const stats = useMemo(
     () => calculateStats(items.map((item) => item.value)),
@@ -92,6 +103,74 @@ function App() {
     () => [...items].sort((left, right) => left.value - right.value || left.id - right.id),
     [items],
   );
+  const frequencyData = useMemo(() => {
+    const frequencies = new Map<number, number>();
+    for (const item of items) {
+      frequencies.set(item.value, (frequencies.get(item.value) ?? 0) + 1);
+    }
+
+    return [...frequencies.entries()]
+      .sort(([left], [right]) => left - right)
+      .map(([value, count]) => ({ value, count }));
+  }, [items]);
+  const maxFrequency = useMemo(
+    () => Math.max(1, ...frequencyData.map((entry) => entry.count)),
+    [frequencyData],
+  );
+  const barScaleTicks = useMemo(() => {
+    const step = maxFrequency <= 6 ? 1 : Math.ceil(maxFrequency / 5);
+    const ticks: number[] = [];
+    for (let value = maxFrequency; value >= 0; value -= step) {
+      ticks.push(value);
+    }
+    if (ticks[ticks.length - 1] !== 0) {
+      ticks.push(0);
+    }
+    return ticks;
+  }, [maxFrequency]);
+  const pieBackground = useMemo(() => {
+    if (frequencyData.length === 0) {
+      return 'transparent';
+    }
+
+    const total = frequencyData.reduce((sum, entry) => sum + entry.count, 0);
+    let start = 0;
+    const segments = frequencyData.map((entry, index) => {
+      const color = chartPalette[index % chartPalette.length];
+      const size = (entry.count / total) * 100;
+      const end = start + size;
+      const segment = `${color} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
+      start = end;
+      return segment;
+    });
+
+    return `conic-gradient(${segments.join(', ')})`;
+  }, [frequencyData]);
+
+  const linePoints = useMemo(() => {
+    if (stats.sortedValues.length === 0) {
+      return '';
+    }
+
+    if (stats.sortedValues.length === 1) {
+      return '24,96';
+    }
+
+    const chartWidth = 360;
+    const chartHeight = 120;
+    const values = stats.sortedValues;
+    const min = values[0];
+    const max = values[values.length - 1];
+    const range = max - min || 1;
+
+    return values
+      .map((value, index) => {
+        const x = (index / (values.length - 1)) * chartWidth;
+        const y = chartHeight - ((value - min) / range) * chartHeight;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+  }, [stats.sortedValues]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -177,10 +256,10 @@ function App() {
         ) : currentPage === 'diagram' ? (
           <section className="value-form page-intro-card">
             <p className="field-label">Diagram</p>
-            <h2>Här bygger vi nästa steg</h2>
+            <h2>Välj diagramtyp</h2>
             <p className="page-intro-text">
-              Den här sidan kan senare visa samma värden som stolpdiagram,
-              linjediagram eller cirkeldiagram.
+              Testa hur samma värden ser ut i olika diagram. Ni kan växla med
+              knapparna i diagramvyn.
             </p>
           </section>
         ) : (
@@ -293,21 +372,135 @@ function App() {
         </section>
       ) : currentPage === 'diagram' ? (
         <section className="workspace-panel single-panel-layout">
-          <div className="board-card placeholder-card">
+          <div className="board-card diagram-card">
             <div className="section-heading">
               <div>
                 <h2>Diagram</h2>
-                <p>Här kommer en framtida vy för att visa värden i olika diagram.</p>
+                <p>Alla diagram använder samma lista med värden.</p>
               </div>
+              <span className="pill">{items.length} värden</span>
             </div>
 
-            <div className="placeholder-grid" aria-hidden="true">
-              <div className="placeholder-bar tall"></div>
-              <div className="placeholder-bar medium"></div>
-              <div className="placeholder-bar short"></div>
-              <div className="placeholder-bar medium"></div>
-              <div className="placeholder-bar tall"></div>
-            </div>
+            {items.length === 0 ? (
+              <div className="empty-state">
+                Lägg till värden i Lägesmått först, så kan ni utforska dem här som
+                olika diagram.
+              </div>
+            ) : (
+              <>
+                <div className="diagram-type-row" role="tablist" aria-label="Diagramtyper">
+                  {diagramTypes.map((type) => (
+                    <button
+                      key={type.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={diagramType === type.id}
+                      className={`diagram-type-button${diagramType === type.id ? ' active' : ''}`}
+                      onClick={() => setDiagramType(type.id)}
+                    >
+                      {type.label}
+                    </button>
+                  ))}
+                </div>
+
+                {diagramType === 'stapel' ? (
+                  <div className="chart-panel">
+                    <div className="horizontal-bar-chart" role="img" aria-label="Stapeldiagram över frekvens">
+                      <div className="bar-scale" aria-hidden="true">
+                        {barScaleTicks.map((tick) => (
+                          <span key={tick}>{tick}</span>
+                        ))}
+                      </div>
+
+                      <div className="bar-rows">
+                        {frequencyData.map((entry, index) => (
+                          <div key={entry.value} className="bar-row">
+                            <p className="bar-label">{formatNumber(entry.value)}</p>
+                            <div className="bar-track">
+                              <div
+                                className="bar-horizontal"
+                                style={{
+                                  width: `${(entry.count / maxFrequency) * 100}%`,
+                                  backgroundColor: chartPalette[index % chartPalette.length],
+                                }}
+                              >
+                                <span>{entry.count}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="chart-caption">Skalan till vänster visar frekvens.</p>
+                  </div>
+                ) : null}
+
+                {diagramType === 'punkt' ? (
+                  <div className="chart-panel">
+                    <div className="dot-chart" role="img" aria-label="Punktdiagram över frekvens">
+                      {frequencyData.map((entry, index) => (
+                        <div key={entry.value} className="dot-column">
+                          <div className="dot-stack">
+                            {Array.from({ length: entry.count }).map((_, pointIndex) => (
+                              <span
+                                key={`${entry.value}-${pointIndex}`}
+                                className="dot"
+                                style={{
+                                  backgroundColor: chartPalette[index % chartPalette.length],
+                                }}
+                              ></span>
+                            ))}
+                          </div>
+                          <p>{formatNumber(entry.value)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {diagramType === 'linje' ? (
+                  <div className="chart-panel">
+                    <div className="line-chart" role="img" aria-label="Linjediagram för sorterade värden">
+                      <svg viewBox="0 0 360 120" preserveAspectRatio="none">
+                        <polyline points={linePoints} />
+                        {linePoints
+                          .split(' ')
+                          .filter(Boolean)
+                          .map((point) => {
+                            const [x, y] = point.split(',');
+                            return <circle key={point} cx={x} cy={y} r="3.2" />;
+                          })}
+                      </svg>
+                    </div>
+                    <p className="chart-caption">Värden i stigande ordning på x-axeln.</p>
+                  </div>
+                ) : null}
+
+                {diagramType === 'cirkel' ? (
+                  <div className="chart-panel pie-layout">
+                    <div
+                      className="pie-chart"
+                      role="img"
+                      aria-label="Cirkeldiagram över frekvens"
+                      style={{ '--pie-background': pieBackground } as CSSProperties}
+                    ></div>
+                    <div className="pie-legend">
+                      {frequencyData.map((entry, index) => (
+                        <div key={entry.value} className="pie-legend-item">
+                          <span
+                            className="legend-swatch"
+                            style={{ backgroundColor: chartPalette[index % chartPalette.length] }}
+                          ></span>
+                          <span>
+                            {formatNumber(entry.value)}: {entry.count} st
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
           </div>
         </section>
       ) : (
