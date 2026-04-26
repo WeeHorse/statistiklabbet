@@ -145,6 +145,58 @@ function App() {
     return `conic-gradient(${segments.join(', ')})`;
   }, [frequencyData]);
 
+  const meanFormula = useMemo(() => {
+    if (stats.sortedValues.length === 0) {
+      return '— =';
+    }
+
+    return `(${stats.sortedValues.map((value) => formatNumber(value)).join(' + ')}) / ${stats.sortedValues.length} =`;
+  }, [stats.sortedValues]);
+
+  const medianFormula = useMemo(() => {
+    if (stats.sortedValues.length === 0) {
+      return '— =';
+    }
+
+    const listText = stats.sortedValues.map((value) => formatNumber(value)).join(', ');
+    const middleIndex = Math.floor(stats.sortedValues.length / 2);
+
+    if (stats.sortedValues.length % 2 === 0) {
+      const leftMiddle = stats.sortedValues[middleIndex - 1];
+      const rightMiddle = stats.sortedValues[middleIndex];
+      return `[${listText}] -> (${formatNumber(leftMiddle)} + ${formatNumber(rightMiddle)}) / 2 =`;
+    }
+
+    const middle = stats.sortedValues[middleIndex];
+    return `[${listText}] -> ${formatNumber(middle)} =`;
+  }, [stats.sortedValues]);
+
+  const modeFormula = useMemo(() => {
+    if (frequencyData.length === 0) {
+      return '— =';
+    }
+
+    const frequencyText = frequencyData
+      .map((entry) => `${formatNumber(entry.value)}:${entry.count}`)
+      .join(', ');
+
+    if (stats.mode.length === 0) {
+      return `${frequencyText} -> inget typvärde =`;
+    }
+
+    return `${frequencyText} -> högst frekvens =`;
+  }, [frequencyData, stats.mode]);
+
+  const rangeFormula = useMemo(() => {
+    if (stats.sortedValues.length === 0) {
+      return '— =';
+    }
+
+    const minValue = stats.sortedValues[0];
+    const maxValue = stats.sortedValues[stats.sortedValues.length - 1];
+    return `${formatNumber(maxValue)} - ${formatNumber(minValue)} =`;
+  }, [stats.sortedValues]);
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -265,29 +317,41 @@ function App() {
           <div className="stats-grid">
             <article className="stat-card highlight">
               <p className="stat-label">Medelvärde</p>
-              <strong>{stats.mean === null ? '–' : formatNumber(stats.mean)}</strong>
+              <div className="stat-math-row">
+                <pre className="math-formula">{meanFormula}</pre>
+                <strong>{stats.mean === null ? '–' : formatNumber(stats.mean)}</strong>
+              </div>
               <span>Summan av alla värden delat med antalet värden.</span>
             </article>
 
             <article className="stat-card">
               <p className="stat-label">Median</p>
-              <strong>{stats.median === null ? '–' : formatNumber(stats.median)}</strong>
+              <div className="stat-math-row">
+                <pre className="math-formula">{medianFormula}</pre>
+                <strong>{stats.median === null ? '–' : formatNumber(stats.median)}</strong>
+              </div>
               <span>Det mittersta värdet när talen ligger i storleksordning.</span>
             </article>
 
             <article className="stat-card">
               <p className="stat-label">Typvärde</p>
-              <strong>
-                {stats.mode.length === 0
-                  ? 'Inget'
-                  : stats.mode.map((value) => formatNumber(value)).join(', ')}
-              </strong>
+              <div className="stat-math-row">
+                <pre className="math-formula">{modeFormula}</pre>
+                <strong>
+                  {stats.mode.length === 0
+                    ? 'Inget'
+                    : stats.mode.map((value) => formatNumber(value)).join(', ')}
+                </strong>
+              </div>
               <span>Det värde som förekommer flest gånger.</span>
             </article>
 
             <article className="stat-card">
               <p className="stat-label">Värdespridning</p>
-              <strong>{stats.range === null ? '–' : formatNumber(stats.range)}</strong>
+              <div className="stat-math-row">
+                <pre className="math-formula">{rangeFormula}</pre>
+                <strong>{stats.range === null ? '–' : formatNumber(stats.range)}</strong>
+              </div>
               <span>Största värdet minus minsta värdet.</span>
             </article>
           </div>
