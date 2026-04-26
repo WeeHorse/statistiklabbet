@@ -7,6 +7,17 @@ type ValueItem = {
   value: number;
 };
 
+type CombinationOption = {
+  id: number;
+  label: string;
+};
+
+type CombinationStep = {
+  id: number;
+  label: string;
+  options: CombinationOption[];
+};
+
 type StatsSummary = {
   mean: number | null;
   median: number | null;
@@ -43,6 +54,7 @@ const getHashForPage = (page: PageId): string => `${PAGE_HASH_PREFIX}${page}`;
 const chartPalette = ['#009e9d', '#f39b4a', '#6b7fff', '#e36d7b', '#6aaf4d', '#8f76ff'];
 const BAR_MODE_STORAGE_KEY = 'statistiklabbet.barMode';
 const ITEMS_STORAGE_KEY = 'statistiklabbet.items';
+const COMBINATORICS_STORAGE_KEY = 'statistiklabbet.combinatorics';
 
 const readStoredItems = (): ValueItem[] => {
   const rawItems = localStorage.getItem(ITEMS_STORAGE_KEY);
@@ -72,6 +84,78 @@ const readStoredItems = (): ValueItem[] => {
   } catch {
     return [];
   }
+};
+
+const readStoredCombinationSteps = (): CombinationStep[] => {
+  const rawSteps = localStorage.getItem(COMBINATORICS_STORAGE_KEY);
+  if (!rawSteps) {
+    return [];
+  }
+
+  try {
+    const parsedSteps = JSON.parse(rawSteps);
+    if (!Array.isArray(parsedSteps)) {
+      return [];
+    }
+
+    const validSteps = parsedSteps
+      .filter((step) => step && typeof step === 'object')
+      .map((step) => {
+        const candidate = step as Partial<CombinationStep>;
+        const options = Array.isArray(candidate.options)
+          ? candidate.options
+            .filter((option) => option && typeof option === 'object')
+            .map((option) => {
+              const optionCandidate = option as Partial<CombinationOption>;
+              return {
+                id: typeof optionCandidate.id === 'number' ? optionCandidate.id : -1,
+                label: typeof optionCandidate.label === 'string' ? optionCandidate.label.trim() : '',
+              };
+            })
+            .filter((option) => option.id >= 0 && option.label.length > 0)
+          : [];
+
+        return {
+          id: typeof candidate.id === 'number' ? candidate.id : -1,
+          label: typeof candidate.label === 'string' ? candidate.label.trim() : '',
+          options,
+        };
+      })
+      .filter((step) => step.id >= 0 && step.label.length > 0);
+
+    return validSteps;
+  } catch {
+    return [];
+  }
+};
+
+const buildCombinationExamples = (steps: CombinationStep[], maxExamples: number): string[] => {
+  if (steps.length === 0 || maxExamples <= 0) {
+    return [];
+  }
+
+  let combinations: string[][] = [[]];
+  for (const step of steps) {
+    if (step.options.length === 0) {
+      return [];
+    }
+
+    const nextCombinations: string[][] = [];
+    for (const combination of combinations) {
+      for (const option of step.options) {
+        nextCombinations.push([...combination, option.label]);
+        if (nextCombinations.length >= maxExamples) {
+          break;
+        }
+      }
+      if (nextCombinations.length >= maxExamples) {
+        break;
+      }
+    }
+    combinations = nextCombinations;
+  }
+
+  return combinations.map((combination) => combination.join(' + '));
 };
 
 const formatNumber = (value: number) => {
@@ -124,6 +208,9 @@ const calculateStats = (values: number[]): StatsSummary => {
 
 function App() {
   const [items, setItems] = useState<ValueItem[]>(() => readStoredItems());
+  const [combinationSteps, setCombinationSteps] = useState<CombinationStep[]>(() => readStoredCombinationSteps());
+  const [stepInputValue, setStepInputValue] = useState('');
+  const [optionInputByStep, setOptionInputByStep] = useState<Record<number, string>>({});
   const [inputValue, setInputValue] = useState('');
   const [currentPage, setCurrentPage] = useState<PageId>(() => getPageFromHash(window.location.hash) ?? 'lagesmatt');
   const [diagramType, setDiagramType] = useState<DiagramType>('stapel');
@@ -139,6 +226,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(items));
   }, [items]);
+
+  useEffect(() => {
+    localStorage.setItem(COMBINATORICS_STORAGE_KEY, JSON.stringify(combinationSteps));
+  }, [combinationSteps]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -259,6 +350,30 @@ function App() {
     return `${formatNumber(maxValue)} - ${formatNumber(minValue)} =`;
   }, [stats.sortedValues]);
 
+  const activeCombinationSteps = useMemo(
+    () => combinationSteps.filter((step) => step.options.length > 0),
+    [combinationSteps],
+  );
+  const totalCombinations = useMemo(() => {
+    if (activeCombinationSteps.length === 0) {
+      return 0;
+    }
+
+    return activeCombinationSteps.reduce((product, step) => product * step.options.length, 1);
+  }, [activeCombinationSteps]);
+  const combinationFormula = useMemo(() => {
+    const factors = activeCombinationSteps.map((step) => step.options.length);
+    if (factors.length === 0) {
+      return '— =';
+    }
+
+    return `${factors.join(' × ')} =`;
+  }, [activeCombinationSteps]);
+  const combinationExamples = useMemo(
+    () => buildCombinationExamples(activeCombinationSteps, 8),
+    [activeCombinationSteps],
+  );
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -312,10 +427,10 @@ function App() {
         {currentPage === 'kombinatorik' ? (
           <section className="value-form page-intro-card">
             <p className="field-label">Kombinatorik</p>
-            <h2>En egen övningsyta</h2>
+            <h2>Bygg era egna valsteg</h2>
             <p className="page-intro-text">
-              Här kan vi senare bygga uppgifter där man räknar olika möjliga val,
-              ordningar och kombinationer.
+              Lägg till steg och val ett i taget. Till höger ser ni kombinationsträdet,
+              formeln och exempel på utfall.
             </p>
           </section>
         ) : (
@@ -573,24 +688,209 @@ function App() {
         </section>
       ) : (
         <section className="workspace-panel single-panel-layout">
-          <div className="board-card placeholder-card">
-            <div className="section-heading">
-              <div>
-                <h2>Kombinatorik</h2>
-                <p>Här kommer en sida för att träna val, ordning och kombinationer.</p>
+          <div className="combinatorics-layout">
+            <div className="board-card combinatorics-builder">
+              <div className="section-heading">
+                <div>
+                  <h2>Kombinationsbyggaren</h2>
+                  <p>Skapa steg och lägg till alternativ för att se hur antalet kombinationer växer.</p>
+                </div>
+                <span className="pill">{combinationSteps.length} steg</span>
+              </div>
+
+              <form
+                className="field-row"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const normalizedLabel = stepInputValue.trim();
+                  if (!normalizedLabel) {
+                    return;
+                  }
+
+                  setCombinationSteps((currentSteps) => {
+                    const nextId = currentSteps.reduce((highestId, step) => Math.max(highestId, step.id), 0) + 1;
+                    return [...currentSteps, { id: nextId, label: normalizedLabel, options: [] }];
+                  });
+                  setStepInputValue('');
+                }}
+              >
+                <input
+                  inputMode="text"
+                  autoComplete="off"
+                  placeholder="Namn på steg, till exempel Smak"
+                  value={stepInputValue}
+                  onChange={(event) => setStepInputValue(event.target.value)}
+                  aria-label="Namn på nytt steg"
+                />
+                <button type="submit">Lägg till steg</button>
+              </form>
+
+              <div className="combinatorics-step-list">
+                {combinationSteps.length === 0 ? (
+                  <div className="empty-state">
+                    Börja med att lägga till ett steg. Exempel: Smak, Topping, Sås.
+                  </div>
+                ) : (
+                  combinationSteps.map((step) => (
+                    <article key={step.id} className="combinatorics-step-card">
+                      <div className="combinatorics-step-header">
+                        <h3>{step.label}</h3>
+                        <div className="combinatorics-step-header-actions">
+                          <span className="pill">{step.options.length} val</span>
+                          <button
+                            type="button"
+                            className="mini-remove-button"
+                            onClick={() => {
+                              setCombinationSteps((currentSteps) => currentSteps.filter((entry) => entry.id !== step.id));
+                              setOptionInputByStep((currentInputs) => {
+                                const nextInputs = { ...currentInputs };
+                                delete nextInputs[step.id];
+                                return nextInputs;
+                              });
+                            }}
+                          >
+                            Ta bort steg
+                          </button>
+                        </div>
+                      </div>
+
+                      <form
+                        className="field-row"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          const currentInputValue = optionInputByStep[step.id] ?? '';
+                          const normalizedOption = currentInputValue.trim();
+                          if (!normalizedOption) {
+                            return;
+                          }
+
+                          setCombinationSteps((currentSteps) => currentSteps.map((entry) => {
+                            if (entry.id !== step.id) {
+                              return entry;
+                            }
+
+                            const nextOptionId = entry.options.reduce((highestId, option) => Math.max(highestId, option.id), 0) + 1;
+                            return {
+                              ...entry,
+                              options: [...entry.options, { id: nextOptionId, label: normalizedOption }],
+                            };
+                          }));
+                          setOptionInputByStep((currentInputs) => ({ ...currentInputs, [step.id]: '' }));
+                        }}
+                      >
+                        <input
+                          inputMode="text"
+                          autoComplete="off"
+                          placeholder={`Lägg till val i ${step.label}`}
+                          value={optionInputByStep[step.id] ?? ''}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            setOptionInputByStep((currentInputs) => ({ ...currentInputs, [step.id]: nextValue }));
+                          }}
+                          aria-label={`Nytt val för ${step.label}`}
+                        />
+                        <button type="submit">Lägg till val</button>
+                      </form>
+
+                      <div className="quick-values" aria-label={`Val för ${step.label}`}>
+                        {step.options.length === 0 ? (
+                          <p className="field-help">Inga val ännu.</p>
+                        ) : (
+                          step.options.map((option) => (
+                            <button
+                              key={`${step.id}-${option.id}`}
+                              type="button"
+                              className="quick-value-chip"
+                              onClick={() => {
+                                setCombinationSteps((currentSteps) => currentSteps.map((entry) => {
+                                  if (entry.id !== step.id) {
+                                    return entry;
+                                  }
+
+                                  return {
+                                    ...entry,
+                                    options: entry.options.filter((currentOption) => currentOption.id !== option.id),
+                                  };
+                                }));
+                              }}
+                              aria-label={`Ta bort valet ${option.label}`}
+                              title="Klicka för att ta bort"
+                            >
+                              {option.label}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+
+              <div className="form-actions">
+                <p className="form-actions-help">Klicka på ett val för att ta bort det</p>
+                <button
+                  type="button"
+                  className="clear-button"
+                  onClick={() => {
+                    setCombinationSteps([]);
+                    setOptionInputByStep({});
+                  }}
+                  disabled={combinationSteps.length === 0}
+                >
+                  Rensa allt
+                </button>
               </div>
             </div>
 
-            <div className="combination-chips" aria-hidden="true">
-              <span className="combination-chip">glass</span>
-              <span className="combination-chip">strössel</span>
-              <span className="combination-chip">sås</span>
-              <span className="combination-chip">bägare</span>
-            </div>
+            <aside className="detail-card combinatorics-summary">
+              <p className="field-label">Visualisering</p>
+              <h3>Kombinationsträd</h3>
+              <p className="combinatorics-summary-text">
+                Varje kolumn är ett steg. Antalet kombinationer är produkten av antal val i varje steg.
+              </p>
+
+              <div className="combination-tree" role="img" aria-label="Förhandsvisning av kombinatoriksteg och val">
+                {activeCombinationSteps.length === 0 ? (
+                  <div className="empty-state">Lägg till steg och val för att se trädet.</div>
+                ) : (
+                  activeCombinationSteps.map((step) => (
+                    <div key={`tree-${step.id}`} className="tree-column">
+                      <p className="tree-step-label">{step.label}</p>
+                      <div className="tree-nodes">
+                        {step.options.map((option) => (
+                          <span key={`node-${step.id}-${option.id}`} className="tree-node">{option.label}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <article className="stat-card">
+                <p className="stat-label">Antal kombinationer</p>
+                <div className="stat-math-row">
+                  <pre className="math-formula">{combinationFormula}</pre>
+                  <strong>{totalCombinations}</strong>
+                </div>
+                <span>Produktprincipen: antal val i steg 1 × steg 2 × ...</span>
+              </article>
+
+              <article className="combination-examples-card">
+                <p className="stat-label">Exempel på utfall</p>
+                {combinationExamples.length === 0 ? (
+                  <p className="field-help">Inga utfall ännu.</p>
+                ) : (
+                  <ol className="combination-examples-list">
+                    {combinationExamples.map((example, index) => (
+                      <li key={`${example}-${index}`}>{example}</li>
+                    ))}
+                  </ol>
+                )}
+              </article>
+            </aside>
           </div>
         </section>
       )}
-
     </main>
   );
 }

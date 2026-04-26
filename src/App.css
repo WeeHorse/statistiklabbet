@@ -235,6 +235,10 @@
   padding: 28px;
 }
 
+.detail-card {
+  padding: 22px;
+}
+
 .section-heading {
   display: flex;
   justify-content: space-between;
@@ -720,56 +724,133 @@
     var(--panel);
 }
 
-.placeholder-card {
+.combinatorics-layout {
   display: grid;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.9fr);
+  gap: 22px;
 }
 
-.placeholder-grid {
-  min-height: 260px;
+.combinatorics-builder {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
-  align-items: end;
-  padding: 20px;
-  border-radius: 24px;
-  background: var(--board);
-  border: 1px dashed rgba(126, 94, 58, 0.18);
-}
-
-.placeholder-bar {
-  border-radius: 18px 18px 10px 10px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(0, 158, 157, 0.22)),
-    var(--accent-soft);
-}
-
-.placeholder-bar.tall {
-  min-height: 180px;
-}
-
-.placeholder-bar.medium {
-  min-height: 130px;
-}
-
-.placeholder-bar.short {
-  min-height: 92px;
-}
-
-.combination-chips {
-  display: flex;
-  flex-wrap: wrap;
   gap: 14px;
-  padding: 4px 0;
 }
 
-.combination-chip {
-  padding: 14px 18px;
+.combinatorics-step-list {
+  display: grid;
+  gap: 12px;
+}
+
+.combinatorics-step-card {
+  border: 1px solid rgba(126, 94, 58, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.58);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.combinatorics-step-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.combinatorics-step-header h3 {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 1.05rem;
+}
+
+.combinatorics-step-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.mini-remove-button {
+  border: 1px solid rgba(177, 59, 42, 0.28);
   border-radius: 999px;
-  background: rgba(255, 250, 242, 0.92);
-  border: 1px solid rgba(126, 94, 58, 0.18);
+  padding: 7px 10px;
+  background: rgba(255, 239, 236, 0.72);
+  color: #8d3c2f;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mini-remove-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.combinatorics-summary {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.combinatorics-summary h3 {
+  margin: 0;
+  color: var(--text-h);
+}
+
+.combinatorics-summary-text {
+  margin: 0;
+  color: var(--muted);
+}
+
+.combination-tree {
+  min-height: 166px;
+  border-radius: 18px;
+  border: 1px dashed rgba(126, 94, 58, 0.2);
+  background: rgba(255, 255, 255, 0.48);
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.tree-column {
+  display: grid;
+  gap: 8px;
+}
+
+.tree-step-label {
+  margin: 0;
   color: var(--text-h);
   font-weight: 700;
+}
+
+.tree-nodes {
+  display: grid;
+  gap: 7px;
+}
+
+.tree-node {
+  border-radius: 12px;
+  border: 1px solid rgba(126, 94, 58, 0.16);
+  background: rgba(255, 250, 242, 0.9);
+  color: var(--text-h);
+  padding: 6px 9px;
+  font-size: 0.88rem;
+}
+
+.combination-examples-card {
+  border: 1px solid rgba(126, 94, 58, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 14px;
+}
+
+.combination-examples-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  color: var(--text-h);
 }
 
 @media (max-width: 1080px) {
@@ -779,7 +860,8 @@
 
   .hero-panel,
   .workspace-panel,
-  .stats-grid {
+  .stats-grid,
+  .combinatorics-layout {
     grid-template-columns: 1fr;
   }
 
@@ -815,8 +897,13 @@
   }
 
   .field-row,
-  .section-heading {
+  .section-heading,
+  .combinatorics-step-header {
     flex-direction: column;
+  }
+
+  .combinatorics-step-header {
+    align-items: flex-start;
   }
 
   .pie-layout {
