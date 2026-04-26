@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent } from 'react';
 import './App.css';
 
@@ -17,6 +17,7 @@ type StatsSummary = {
 
 type PageId = 'lagesmatt' | 'diagram' | 'kombinatorik';
 type DiagramType = 'stapel' | 'punkt' | 'linje' | 'cirkel';
+type BarMode = 'staande' | 'liggande';
 
 const pages: Array<{ id: PageId; label: string; }> = [
   { id: 'lagesmatt', label: 'Lägesmått' },
@@ -32,6 +33,7 @@ const diagramTypes: Array<{ id: DiagramType; label: string; }> = [
 ];
 
 const chartPalette = ['#009e9d', '#f39b4a', '#6b7fff', '#e36d7b', '#6aaf4d', '#8f76ff'];
+const BAR_MODE_STORAGE_KEY = 'statistiklabbet.barMode';
 
 const formatNumber = (value: number) => {
   const fixedValue = Number.isInteger(value) ? value.toString() : value.toFixed(2);
@@ -94,6 +96,14 @@ function App() {
   const [nextId, setNextId] = useState(5);
   const [currentPage, setCurrentPage] = useState<PageId>('lagesmatt');
   const [diagramType, setDiagramType] = useState<DiagramType>('stapel');
+  const [barMode, setBarMode] = useState<BarMode>(() => {
+    const savedMode = localStorage.getItem(BAR_MODE_STORAGE_KEY);
+    return savedMode === 'pivot' || savedMode === 'liggande' ? 'liggande' : 'staande';
+  });
+
+  useEffect(() => {
+    localStorage.setItem(BAR_MODE_STORAGE_KEY, barMode);
+  }, [barMode]);
 
   const stats = useMemo(
     () => calculateStats(items.map((item) => item.value)),
@@ -118,15 +128,7 @@ function App() {
     [frequencyData],
   );
   const barScaleTicks = useMemo(() => {
-    const step = maxFrequency <= 6 ? 1 : Math.ceil(maxFrequency / 5);
-    const ticks: number[] = [];
-    for (let value = maxFrequency; value >= 0; value -= step) {
-      ticks.push(value);
-    }
-    if (ticks[ticks.length - 1] !== 0) {
-      ticks.push(0);
-    }
-    return ticks;
+    return Array.from({ length: maxFrequency + 1 }, (_, index) => maxFrequency - index);
   }, [maxFrequency]);
   const pieBackground = useMemo(() => {
     if (frequencyData.length === 0) {
@@ -405,33 +407,88 @@ function App() {
 
                 {diagramType === 'stapel' ? (
                   <div className="chart-panel">
-                    <div className="horizontal-bar-chart" role="img" aria-label="Stapeldiagram över frekvens">
-                      <div className="bar-scale" aria-hidden="true">
-                        {barScaleTicks.map((tick) => (
-                          <span key={tick}>{tick}</span>
-                        ))}
-                      </div>
+                    <div className="bar-mode-toggle" role="tablist" aria-label="Stapelläge">
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={barMode === 'staande'}
+                        className={`bar-mode-button${barMode === 'staande' ? ' active' : ''}`}
+                        onClick={() => setBarMode('staande')}
+                      >
+                        Stående
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={barMode === 'liggande'}
+                        className={`bar-mode-button${barMode === 'liggande' ? ' active' : ''}`}
+                        onClick={() => setBarMode('liggande')}
+                      >
+                        Liggande
+                      </button>
+                    </div>
 
-                      <div className="bar-rows">
-                        {frequencyData.map((entry, index) => (
-                          <div key={entry.value} className="bar-row">
-                            <p className="bar-label">{formatNumber(entry.value)}</p>
-                            <div className="bar-track">
-                              <div
-                                className="bar-horizontal"
-                                style={{
-                                  width: `${(entry.count / maxFrequency) * 100}%`,
-                                  backgroundColor: chartPalette[index % chartPalette.length],
-                                }}
-                              >
-                                <span>{entry.count}</span>
+                    {barMode === 'staande' ? (
+                      <div className="bar-chart-layout" role="img" aria-label="Stapeldiagram över frekvens">
+                        <div className="bar-scale" aria-hidden="true">
+                          {barScaleTicks.map((tick) => (
+                            <span key={tick}>{tick}</span>
+                          ))}
+                        </div>
+
+                        <div className="bar-chart">
+                          {frequencyData.map((entry, index) => (
+                            <div key={entry.value} className="bar-group">
+                              <div className="bar-shell">
+                                <div
+                                  className="bar"
+                                  style={{
+                                    height: `${(entry.count / maxFrequency) * 100}%`,
+                                    backgroundColor: chartPalette[index % chartPalette.length],
+                                  }}
+                                >
+                                  <span>{entry.count}</span>
+                                </div>
+                              </div>
+                              <p>{formatNumber(entry.value)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="horizontal-bar-chart" role="img" aria-label="Liggande stapeldiagram över frekvens">
+                        <div className="bar-rows">
+                          {frequencyData.map((entry, index) => (
+                            <div key={entry.value} className="bar-row">
+                              <p className="bar-label">{formatNumber(entry.value)}</p>
+                              <div className="bar-track">
+                                <div
+                                  className="bar-horizontal"
+                                  style={{
+                                    width: `${(entry.count / maxFrequency) * 100}%`,
+                                    backgroundColor: chartPalette[index % chartPalette.length],
+                                  }}
+                                >
+                                  <span>{entry.count}</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+
+                        <div className="horizontal-bar-scale" aria-hidden="true">
+                          {[...barScaleTicks].reverse().map((tick) => (
+                            <span key={tick}>{tick}</span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                    <p className="chart-caption">Skalan till vänster visar frekvens.</p>
+                    )}
+
+                    <p className="chart-caption">
+                      {barMode === 'staande'
+                        ? 'Skalan till vänster visar frekvens (hur många av varje värde).'
+                        : 'Skalan visar frekvens (hur många av varje värde).'}
+                    </p>
                   </div>
                 ) : null}
 
@@ -485,6 +542,9 @@ function App() {
                       style={{ '--pie-background': pieBackground } as CSSProperties}
                     ></div>
                     <div className="pie-legend">
+                      <p className="pie-legend-intro">
+                        Cirkeldiagrammet visar hur många gånger olika värden finns med.
+                      </p>
                       {frequencyData.map((entry, index) => (
                         <div key={entry.value} className="pie-legend-item">
                           <span
@@ -492,7 +552,8 @@ function App() {
                             style={{ backgroundColor: chartPalette[index % chartPalette.length] }}
                           ></span>
                           <span>
-                            {formatNumber(entry.value)}: {entry.count} st
+                            Värdet {formatNumber(entry.value)} finns med{' '}
+                            {entry.count === 1 ? '1 gång' : `${entry.count} gånger`}
                           </span>
                         </div>
                       ))}
