@@ -30,8 +30,49 @@ const diagramTypes: Array<{ id: DiagramType; label: string; }> = [
   { id: 'cirkel', label: 'Cirkeldiagram' },
 ];
 
+const PAGE_HASH_PREFIX = '#';
+
+const getPageFromHash = (hash: string): PageId | null => {
+  const normalizedHash = hash.replace(/^#/, '').trim().toLowerCase();
+  const page = pages.find((entry) => entry.id === normalizedHash);
+  return page?.id ?? null;
+};
+
+const getHashForPage = (page: PageId): string => `${PAGE_HASH_PREFIX}${page}`;
+
 const chartPalette = ['#009e9d', '#f39b4a', '#6b7fff', '#e36d7b', '#6aaf4d', '#8f76ff'];
 const BAR_MODE_STORAGE_KEY = 'statistiklabbet.barMode';
+const ITEMS_STORAGE_KEY = 'statistiklabbet.items';
+
+const readStoredItems = (): ValueItem[] => {
+  const rawItems = localStorage.getItem(ITEMS_STORAGE_KEY);
+  if (!rawItems) {
+    return [];
+  }
+
+  try {
+    const parsedItems = JSON.parse(rawItems);
+    if (!Array.isArray(parsedItems)) {
+      return [];
+    }
+
+    const validItems = parsedItems
+      .filter((item) => {
+        if (!item || typeof item !== 'object') {
+          return false;
+        }
+
+        const candidate = item as Partial<ValueItem>;
+        return typeof candidate.id === 'number' && Number.isFinite(candidate.id)
+          && typeof candidate.value === 'number' && Number.isFinite(candidate.value);
+      })
+      .map((item) => ({ id: item.id, value: item.value } as ValueItem));
+
+    return validItems;
+  } catch {
+    return [];
+  }
+};
 
 const formatNumber = (value: number) => {
   const fixedValue = Number.isInteger(value) ? value.toString() : value.toFixed(2);
@@ -82,15 +123,9 @@ const calculateStats = (values: number[]): StatsSummary => {
 };
 
 function App() {
-  const [items, setItems] = useState<ValueItem[]>([
-    { id: 1, value: 4 },
-    { id: 2, value: 7 },
-    { id: 3, value: 7 },
-    { id: 4, value: 10 },
-  ]);
+  const [items, setItems] = useState<ValueItem[]>(() => readStoredItems());
   const [inputValue, setInputValue] = useState('');
-  const [nextId, setNextId] = useState(5);
-  const [currentPage, setCurrentPage] = useState<PageId>('lagesmatt');
+  const [currentPage, setCurrentPage] = useState<PageId>(() => getPageFromHash(window.location.hash) ?? 'lagesmatt');
   const [diagramType, setDiagramType] = useState<DiagramType>('stapel');
   const [barMode, setBarMode] = useState<BarMode>(() => {
     const savedMode = localStorage.getItem(BAR_MODE_STORAGE_KEY);
@@ -100,6 +135,33 @@ function App() {
   useEffect(() => {
     localStorage.setItem(BAR_MODE_STORAGE_KEY, barMode);
   }, [barMode]);
+
+  useEffect(() => {
+    localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(items));
+  }, [items]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const pageFromHash = getPageFromHash(window.location.hash);
+      if (pageFromHash) {
+        setCurrentPage(pageFromHash);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    handleHashChange();
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const expectedHash = getHashForPage(currentPage);
+    if (window.location.hash !== expectedHash) {
+      window.location.hash = expectedHash;
+    }
+  }, [currentPage]);
 
   const stats = useMemo(
     () => calculateStats(items.map((item) => item.value)),
@@ -210,8 +272,10 @@ function App() {
       return;
     }
 
-    setItems((currentItems) => [...currentItems, { id: nextId, value: parsedValue }]);
-    setNextId((currentId) => currentId + 1);
+    setItems((currentItems) => {
+      const nextId = currentItems.reduce((highestId, item) => Math.max(highestId, item.id), 0) + 1;
+      return [...currentItems, { id: nextId, value: parsedValue }];
+    });
     setInputValue('');
   };
 
