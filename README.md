@@ -1,43 +1,108 @@
-# React + TypeScript + Vite
+# Statistiklabbet
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Statistiklabbet är en frontend-app byggd med Vite, React och TypeScript.
+Appen är på svenska och riktad till matematik i årskurs 7.
 
-Currently, two official plugins are available:
+Syftet är att göra statistik tydligt och praktiskt genom att låta elever mata in egna värden och direkt se hur lägesmåtten och diagrammen förändras.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Innehåll i appen
 
-## React Compiler
+Appen har tre vyer:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Lägesmått
+2. Diagram
+3. Kombinatorik
 
-## Expanding the ESLint configuration
+Vyerna kan nås via menyn i toppen och via hash-länkar i URL:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- `#lagesmatt`
+- `#diagram`
+- `#kombinatorik`
 
-```js
-export default defineConfig([
-  # Statistiklabbet
+## 1. Lägesmått
 
-  En enkel frontend-app på svenska för att träna statistik i sjuan tillsammans med barn.
+I Lägesmått-vyn arbetar du med listan av värden.
 
-  Första versionen innehåller:
+Det går att:
 
-  - inmatning av ett värde i taget
-  - visualisering som dragbara klossar
-  - möjlighet att kasta ett värde i papperskorgen
-  - automatisk beräkning av medelvärde, median, typvärde och värdespridning
+- lägga till ett värde i taget (heltal eller decimaltal med komma eller punkt)
+- se alla inmatade värden som klickbara chips
+- ta bort ett enskilt värde genom att klicka på dess chip
+- rensa hela listan med knappen Rensa
 
-  ## Kom igång
+Under listan visas fyra statistikrutor:
 
-  ```bash
-  npm install
-  npm run dev
-  ```
+- Medelvärde
+- Median
+- Typvärde
+- Värdespridning
 
-  ## Nästa steg
+Varje ruta visar både:
 
-  - lägga till diagram
-  - bygga en separat vy för kombinatorik
-  - lägga till uppgifter eller små övningar direkt i appen
-])
+- en förformaterad beräkning till vänster
+- resultatet till höger
+
+## 2. Diagram
+
+Diagram-vyn använder samma värdelista som Lägesmått.
+
+Stöd finns för:
+
+- Stapeldiagram
+- Cirkeldiagram
+
+Stapeldiagram har två lägen:
+
+- Stående
+- Liggande
+
+Skalan visar frekvens, alltså hur många gånger varje värde förekommer.
+
+## 3. Kombinatorik
+
+Kombinatorik-vyn är en förberedd yta för kommande övningar om val, ordning och kombinationer.
+
+## Sparad data
+
+Appen sparar data i webbläsarens localStorage:
+
+- värdelistan sparas automatiskt
+- valt stapelläge (stående/liggande) sparas automatiskt
+
+Det betyder att dina senaste ändringar finns kvar efter omladdning i samma webbläsare.
+
+## Kom igång lokalt
+
+Installera beroenden:
+
+```bash
+npm install
+```
+
+Starta utvecklingsserver:
+
+```bash
+npm run dev
+```
+
+Bygg för produktion:
+
+```bash
+npm run build
+```
+
+Förhandsgranska produktionsbygge:
+
+```bash
+npm run preview
+```
+
+## Teknik
+
+- Vite
+- React
+- TypeScript
+
+## Målgrupp
+
+Appen är utformad för undervisning i statistik i årskurs 7, med tydligt språk och direkt visuell återkoppling.
